@@ -43,9 +43,9 @@ async def _(bot: Bot, event: GroupMessageEvent, tgt_days: Message = CommandArg()
             temp_json = {
                 user_id : {
                     "tgt_days": tgt_days_int,
-                    "now_days": 0,
+                    "now_days": 1,
                     "nickname": nickname,
-                    "last_time" : now_time - 3600 * 24
+                    "last_time" : now_time
                 }
             }
             data_json[group_id].update(temp_json)
@@ -54,9 +54,9 @@ async def _(bot: Bot, event: GroupMessageEvent, tgt_days: Message = CommandArg()
             group_id: {
                 user_id : {
                     "tgt_days": tgt_days_int,
-                    "now_days": 0,
+                    "now_days": 1,
                     "nickname": nickname,
-                    "last_time" : now_time - 3600 * 24
+                    "last_time" : now_time
                 }
             }
         }
@@ -68,7 +68,7 @@ async def _(bot: Bot, event: GroupMessageEvent, tgt_days: Message = CommandArg()
         with open(data_path, mode='w', encoding='utf-8') as f:
             json.dump(data_json, f)
             f.close()
-        msg += "戒色目标天数：" + tgt_days + "，设置成功！你我都有美好的未来！"
+        msg += "戒色目标天数：" + tgt_days + "，设置成功！今天是第一天，加油！你我都有美好的未来！"
     except IOError as e:
         msg += "设置失败 " + str(e)
     await set_abstain.finish(MessageSegment.text(msg), at_sender=True)
@@ -91,7 +91,7 @@ async def _(bot: Bot, event: GroupMessageEvent):
             temp_last = time.strftime("%Y-%m-%d", time.localtime(data_json[group_id][user_id]["last_time"]))
             # 判断是否一天内重复打卡
             if temp_now == temp_last:
-                msg = "\n您今天已经打过卡啦，不用再打啦~"
+                msg = "\n您今天已经打过卡啦，不用再打啦~记得明天再来哦~"
                 await abstain.finish(MessageSegment.text(msg), at_sender=True)
 
             data_json[group_id][user_id]["last_time"] = now_time
@@ -185,7 +185,10 @@ def init_data():
         os.mkdir(data_dir)
     with open(data_path, mode='a+', encoding='utf-8') as f:
         f.seek(0, 0)
-        data_json = json.load(f)
+        if len(f.readlines()) == 0:
+            data_json = {}
+        else:
+            data_json = json.load(f)
         f.close()
         logger.info("戒色数据加载完毕。")
 
