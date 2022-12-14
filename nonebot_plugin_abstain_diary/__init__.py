@@ -17,6 +17,7 @@ set_abstain = on_command("设置戒色目标", aliases={"戒色目标"})
 abstain = on_command("戒色打卡", aliases={"戒色"})
 abstain_state = on_command("群友戒色情况", aliases={"戒色情况", "群戒色"})
 abstain_help = on_command("戒色帮助", aliases={"戒色说明", "戒色命令"})
+abandon_abstain = on_command("放弃戒色", aliases={"取消戒色", "不戒色了"})
 
 @set_abstain.handle()
 async def _(bot: Bot, event: GroupMessageEvent, tgt_days: Message = CommandArg()):
@@ -32,6 +33,12 @@ async def _(bot: Bot, event: GroupMessageEvent, tgt_days: Message = CommandArg()
     except:
         await set_abstain.finish(MessageSegment.text("请传入正整数喵~"), at_sender=True)
 
+    # 进行天数判断
+    if tgt_days_int < 1:
+        await set_abstain.finish(MessageSegment.text("请传入正整数喵~"), at_sender=True)
+    elif tgt_days_int == 1:
+        await set_abstain.finish(MessageSegment.text("就一天？？？开什么玩笑，kora！"), at_sender=True)
+
     now_time = time.time()
 
     # 是否存在 群组数据
@@ -43,9 +50,9 @@ async def _(bot: Bot, event: GroupMessageEvent, tgt_days: Message = CommandArg()
             temp_json = {
                 user_id : {
                     "tgt_days": tgt_days_int,
-                    "now_days": 1,
+                    "now_days": 0,
                     "nickname": nickname,
-                    "last_time" : now_time
+                    "last_time" : now_time - 24 * 3600
                 }
             }
             data_json[group_id].update(temp_json)
@@ -54,9 +61,9 @@ async def _(bot: Bot, event: GroupMessageEvent, tgt_days: Message = CommandArg()
             group_id: {
                 user_id : {
                     "tgt_days": tgt_days_int,
-                    "now_days": 1,
+                    "now_days": 0,
                     "nickname": nickname,
-                    "last_time" : now_time
+                    "last_time" : now_time - 24 * 3600
                 }
             }
         }
@@ -68,7 +75,7 @@ async def _(bot: Bot, event: GroupMessageEvent, tgt_days: Message = CommandArg()
         with open(data_path, mode='w', encoding='utf-8') as f:
             json.dump(data_json, f)
             f.close()
-        msg += "戒色目标天数：" + tgt_days + "，设置成功！今天是第一天，加油！你我都有美好的未来！"
+        msg += "戒色目标天数：" + tgt_days + "，设置成功！加油！你我都有美好的未来！"
     except IOError as e:
         msg += "设置失败 " + str(e)
     await set_abstain.finish(MessageSegment.text(msg), at_sender=True)
@@ -165,6 +172,37 @@ async def _(bot: Bot, event: GroupMessageEvent):
         await abstain_state.finish(MessageSegment.text(msg), at_sender=True)
 
 
+@abandon_abstain.handle()
+async def _(bot: Bot, event: GroupMessageEvent):
+    global data_json
+
+    user_id = str(event.get_user_id())
+    group_id = str(event.group_id)
+
+    # 是否存在 群组数据
+    if group_id in data_json:
+        # 是否存在 用户数据
+        if user_id in data_json[group_id]:
+            data_json[group_id].pop(user_id)
+            try:
+                # 数据写回
+                with open(data_path, mode='w', encoding='utf-8') as f:
+                    json.dump(data_json, f)
+                    f.close()
+                msg = "\n戒色打卡已取消，您可以开冲啦！！！"
+                await abstain_state.finish(MessageSegment.text(msg), at_sender=True)
+            except IOError as e:
+                msg = "\n数据写入失败，请检查源码或数据问题。 " + str(e)
+                await abstain.finish(MessageSegment.text(msg), at_sender=True)
+        else:
+            msg = "\n您还没有设置【戒色目标】捏，不用取消啦~"
+            await abstain_state.finish(MessageSegment.text(msg), at_sender=True)
+    else:
+        msg = "\n您还没有设置【戒色目标】捏，不用取消啦~"
+        await abstain_state.finish(MessageSegment.text(msg), at_sender=True)
+
+
+
 @abstain_help.handle()
 async def _(bot: Bot, event: GroupMessageEvent):
     msg = "\n戒色命令如下(【】中的才是命令哦，记得加命令前缀)：\n"
@@ -188,7 +226,8 @@ def init_data():
         if len(f.readlines()) == 0:
             data_json = {}
         else:
-            data_json = json.load(f)
+            data_json = json.loads(json.dumps(f.readlines()))
+            # data_json = json.load(f)
         f.close()
         logger.info("戒色数据加载完毕。")
 
